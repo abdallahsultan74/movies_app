@@ -3,6 +3,8 @@ import 'package:movie/core/theme/app_colors.dart';
 import 'package:movie/core/theme/app_assets.dart';
 import 'package:movie/core/api/api_service.dart';
 import 'package:movie/core/api/models/register_request.dart';
+import 'package:movie/core/services/user_service.dart';
+import 'package:movie/core/models/user_model.dart';
 import 'package:movie/screens/auth/login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -21,12 +23,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   final _phoneController = TextEditingController();
 
-  int _selectedAvatarIndex = 1; // الوسط محدد افتراضياً
+  int _selectedAvatarIndex = 1;
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
-  bool _isLiberiaSelected = true; // علم ليبيريا محدد افتراضياً
+  bool _isLiberiaSelected = true;
   bool _isLoading = false;
   final ApiService _apiService = ApiService();
+  final UserService _userService = UserService();
 
   @override
   void dispose() {
@@ -67,10 +70,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 24),
-                // Avatar Selection Section
                 _buildAvatarSection(),
                 const SizedBox(height: 32),
-                // Name Field
                 _buildTextField(
                   controller: _nameController,
                   icon: AppAssets.nameIcon,
@@ -84,7 +85,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Email Field
                 _buildTextField(
                   controller: _emailController,
                   icon: AppAssets.emailIcon,
@@ -101,7 +101,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Password Field
                 _buildPasswordField(
                   controller: _passwordController,
                   hintText: 'Password',
@@ -122,7 +121,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Confirm Password Field
                 _buildPasswordField(
                   controller: _confirmPasswordController,
                   hintText: 'Confirm Password',
@@ -143,7 +141,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                // Phone Number Field
                 _buildTextField(
                   controller: _phoneController,
                   icon: AppAssets.phoneIcon,
@@ -157,7 +154,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 32),
-                // Create Account Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -189,7 +185,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Already Have Account Text
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -219,7 +214,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                 ),
                 const SizedBox(height: 32),
-                // Language Toggle
                 _buildLanguageToggle(),
                 const SizedBox(height: 32),
               ],
@@ -387,77 +381,85 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildLanguageToggle() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final containerWidth = constraints.maxWidth;
-        final toggleWidth = containerWidth / 2;
+    const containerWidth = 92.10857391357422;
+    const containerHeight = 37.89108657836914;
+    const borderWidth = 2.0;
+    const flagSize = 25.0;
 
-        return Container(
-          height: 50,
-          decoration: BoxDecoration(
-            color: AppColors.grey,
-            borderRadius: BorderRadius.circular(25),
+    return Container(
+      width: containerWidth,
+      height: containerHeight,
+      decoration: BoxDecoration(
+        color: AppColors.grey,
+        borderRadius: BorderRadius.circular(containerHeight / 2),
+        border: Border.all(
+          color: AppColors.grey,
+          width: borderWidth,
+        ),
+      ),
+      child: Stack(
+        children: [
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            left: _isLiberiaSelected ? borderWidth : containerWidth / 2,
+            top: borderWidth,
+            child: Container(
+              width: (containerWidth / 2) - borderWidth,
+              height: containerHeight - (borderWidth * 2),
+              decoration: BoxDecoration(
+                color: AppColors.grey,
+                borderRadius: BorderRadius.circular(
+                    (containerHeight - (borderWidth * 2)) / 2),
+              ),
+            ),
           ),
-          child: Stack(
+          Row(
             children: [
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                left: _isLiberiaSelected ? 4 : toggleWidth - 4,
-                top: 4,
-                child: Container(
-                  width: toggleWidth - 8,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: AppColors.Black,
-                    borderRadius: BorderRadius.circular(21),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isLiberiaSelected = true;
+                    });
+                  },
+                  child: Container(
+                    alignment: Alignment.center,
+                    child: ClipOval(
+                      child: Image.asset(
+                        AppAssets.usa,
+                        width: flagSize,
+                        height: flagSize,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 ),
               ),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isLiberiaSelected = true;
-                        });
-                      },
-                      child: Container(
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Image.asset(
-                          AppAssets.usa,
-                          width: 30,
-                          height: 30,
-                        ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isLiberiaSelected = false;
+                    });
+                  },
+                  child: Container(
+                    alignment: Alignment.center,
+                    child: ClipOval(
+                      child: Image.asset(
+                        AppAssets.egypt,
+                        width: flagSize,
+                        height: flagSize,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isLiberiaSelected = false;
-                        });
-                      },
-                      child: Container(
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Image.asset(
-                          AppAssets.egypt,
-                          width: 30,
-                          height: 30,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -474,7 +476,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           password: _passwordController.text,
           confirmPassword: _confirmPasswordController.text,
           phone: _phoneController.text.trim(),
-          avaterId: _selectedAvatarIndex + 1, // 1, 2, or 3
+          avaterId: _selectedAvatarIndex + 1,
         );
 
         final response = await _apiService.register(request);
@@ -484,12 +486,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _isLoading = false;
           });
 
+          // Save user data if available
+          if (response.data != null) {
+            final user = UserModel(
+              id: response.data!.id,
+              name: response.data!.name,
+              email: response.data!.email,
+              phone: response.data!.phone,
+              avatarId: response.data!.avaterId,
+            );
+            await _userService.saveUser(user);
+          }
+
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(response.message.isNotEmpty
                   ? response.message
-                  : 'تم إنشاء الحساب بنجاح!'),
+                  : 'Account created successfully!'),
               backgroundColor: AppColors.yellow,
               behavior: SnackBarBehavior.floating,
             ),
@@ -525,4 +539,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 }
-

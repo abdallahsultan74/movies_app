@@ -1,5 +1,4 @@
 class AppAssets {
-  // profile pics
   static const String avatar1 = "assets/avatar/avatar1.png";
   static const String avatar2 = "assets/avatar/avatar2.png";
   static const String avatar3 = "assets/avatar/avatar3.png";
@@ -10,7 +9,6 @@ class AppAssets {
   static const String avatar8 = "assets/avatar/avatar8.png";
   static const String avatar9 = "assets/avatar/avatar9.png";
 
-  // icons
   static const String egypt = "assets/icons/EG.png";
   static const String usa= "assets/icons/USA.png";
   static const String emailIcon= "assets/icons/email.png";
@@ -29,11 +27,9 @@ class AppAssets {
   static const String timerIcon= "assets/icons/timer.png";
   static const String watchListIcon= "assets/icons/watchListIcon.png";
 
-  //splash screen
   static const String logo= "assets/splash/logo.png";
   static const String routeLogo= "assets/splash/route logo.png";
 
-  //onboarding
   static const String onBoarding1= "assets/images/onboarding1.png";
   static const String onBoarding2= "assets/images/onboarding2.png";
   static const String onBoarding3= "assets/images/onboarding3.png";
@@ -41,7 +37,6 @@ class AppAssets {
   static const String onBoarding5= "assets/images/onboarding5.png";
   static const String onBoarding6= "assets/images/onboarding6.png";
 
-  // images
   static const String availableNowTxt= "assets/images/Available Now text.png";
   static const String watchNowTxt= "assets/images/Watch Now text.png";
   static const String popcorn= "assets/images/popcorn.png";
