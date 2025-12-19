@@ -33,7 +33,7 @@ class MovieApp extends StatelessWidget {
         routes: {
           SplashScreen.routeName: (context) => const SplashScreen(),
           OnboardingScreen.routeName: (_) => OnboardingScreen(),
-          LoginScreen.routeName: (_) => LoginScreen(),
+          LoginScreen.routeName: (_) => const LoginScreen(),
           RegisterScreen.routeName: (_) => const RegisterScreen(),
           ResetPasswordScreen.routeName: (_) => const ResetPasswordScreen(),
           HomeScreen.routeName: (_) => const HomeScreen(),

@@ -18,8 +18,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _tabs = [
     const HomeTab(),
-    const BrowseTab(),
     const SearchTab(),
+    const BrowseTab(),
     const ProfileTab(),
   ];
 

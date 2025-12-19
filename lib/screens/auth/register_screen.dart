@@ -465,6 +465,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  bool _isStrongPassword(String password) {
+    if (password.length < 8) return false;
+    if (!password.contains(RegExp(r'[A-Z]'))) return false;
+    if (!password.contains(RegExp(r'[a-z]'))) return false;
+    if (!password.contains(RegExp(r'[0-9]'))) return false;
+    final specialCharPattern = RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>/?~`]');
+    if (!password.contains(specialCharPattern)) return false;
+    return true;
+  }
+
   Future<void> _handleCreateAccount() async {
     // First validate form fields
     if (!_formKey.currentState!.validate()) {
@@ -472,8 +482,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     
     // Then validate password strength and match
-    final password = _passwordController.text;
-    final confirmPassword = _confirmPasswordController.text;
+    final password = _passwordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
     
     // Check password match first
     if (password != confirmPassword) {
@@ -488,7 +498,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
     
-    // Let API validate password strength - it will return appropriate error message
+    // Validate password strength before API call
+    if (!_isStrongPassword(password)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be strong:\n'
+              '• At least 8 characters\n'
+              '• Include uppercase and lowercase letters\n'
+              '• Include at least one number\n'
+              '• Include at least one special character (!@#\$%^&*)'),
+          backgroundColor: AppColors.Red,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
     
     // All validations passed, proceed with registration
     setState(() {
@@ -505,9 +530,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           avaterId: _selectedAvatarIndex + 1,
         );
 
-        final response = await _apiService.register(request);
-
         if (mounted) {
+          final response = await _apiService.register(request);
+
           setState(() {
             _isLoading = false;
           });
@@ -525,25 +550,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
           }
 
           // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response.message.isNotEmpty
-                  ? response.message
-                  : 'Account created successfully!'),
-              backgroundColor: AppColors.yellow,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response.message.isNotEmpty
+                    ? response.message
+                    : 'Account created successfully!'),
+                backgroundColor: AppColors.yellow,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
 
-          // Navigate to login screen after successful registration
-          Future.delayed(const Duration(seconds: 1), () {
-            if (mounted) {
-              Navigator.pushReplacementNamed(
-                context,
-                LoginScreen.routeName,
-              );
-            }
-          });
+            // Navigate to login screen after successful registration
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted) {
+                Navigator.pushReplacementNamed(
+                  context,
+                  LoginScreen.routeName,
+                );
+              }
+            });
+          }
         }
       } catch (e) {
         if (mounted) {
@@ -551,10 +578,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _isLoading = false;
           });
 
-          // Show error message with better formatting
           String errorMessage = e.toString().replaceAll('Exception: ', '');
           
-          // Improve common error messages
           if (errorMessage.toLowerCase().contains('password') && 
               errorMessage.toLowerCase().contains('strong')) {
             errorMessage = 'Password must be strong:\n'
@@ -563,12 +588,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 '• Include at least one number\n'
                 '• Include at least one special character (!@#\$%^&*)';
           } else if (errorMessage.contains('[') && errorMessage.contains(']')) {
-            // Remove brackets and improve formatting
             errorMessage = errorMessage
                 .replaceAll('[', '')
                 .replaceAll(']', '')
                 .replaceAll('Password is must be strong', 'Password must be strong')
                 .replaceAll('confirm password must be strong', 'Confirm password must be strong');
+          } else if (errorMessage.contains('email') && 
+                     (errorMessage.toLowerCase().contains('already') || 
+                      errorMessage.toLowerCase().contains('exist'))) {
+            errorMessage = 'This email is already registered. Please use a different email or login.';
+          } else if (errorMessage.contains('phone') && 
+                     (errorMessage.toLowerCase().contains('already') || 
+                      errorMessage.toLowerCase().contains('exist'))) {
+            errorMessage = 'This phone number is already registered. Please use a different phone number.';
           }
 
           ScaffoldMessenger.of(context).showSnackBar(

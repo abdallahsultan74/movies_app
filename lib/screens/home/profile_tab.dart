@@ -4,8 +4,13 @@ import 'package:movie/core/theme/app_assets.dart';
 import 'package:movie/core/services/user_service.dart';
 import 'package:movie/core/models/user_model.dart';
 import 'package:movie/core/api/api_service.dart';
+import 'package:movie/core/api/models/movie_model.dart';
+import 'package:movie/core/api/models/favorite_movie_model.dart';
+import 'package:movie/core/services/history_service.dart';
+import 'package:movie/core/utils/responsive.dart';
 import 'package:movie/screens/home/update_profile_tab.dart';
 import 'package:movie/screens/auth/login_screen.dart';
+import 'package:movie/screens/home/movie_details_screen.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -14,17 +19,88 @@ class ProfileTab extends StatefulWidget {
   State<ProfileTab> createState() => _ProfileTabState();
 }
 
-class _ProfileTabState extends State<ProfileTab> {
+class _ProfileTabState extends State<ProfileTab> with WidgetsBindingObserver {
   int _selectedTabIndex = 0;
   UserModel? _user;
   final UserService _userService = UserService();
   final ApiService _apiService = ApiService();
+  final HistoryService _historyService = HistoryService();
   bool _isLoading = false;
+  List<FavoriteMovieModel> _favorites = [];
+  List<MovieModel> _history = [];
+  bool _isLoadingFavorites = false;
+  bool _isLoadingHistory = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserData();
+    _loadFavorites();
+    _loadHistory();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadFavorites();
+      _loadHistory();
+    }
+  }
+
+  Future<void> _loadFavorites() async {
+    final token = await _userService.getToken();
+    if (token == null || token.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingFavorites = true;
+    });
+
+    try {
+      final response = await _apiService.getFavorites(token);
+      if (mounted) {
+        setState(() {
+          _favorites = response.favorites;
+          _isLoadingFavorites = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingFavorites = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _isLoadingHistory = true;
+    });
+
+    try {
+      final history = await _historyService.getHistory();
+      if (mounted) {
+        setState(() {
+          _history = history;
+          _isLoadingHistory = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingHistory = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -95,9 +171,9 @@ class _ProfileTabState extends State<ProfileTab> {
             const SizedBox(height: 16),
             _buildTabs(),
             Expanded(
-              child: _selectedTabIndex == 0
-                  ? _buildWatchListContent()
-                  : _buildHistoryContent(),
+                  child: _selectedTabIndex == 0
+                      ? _buildWatchListContent()
+                      : _buildHistoryContent(),
             ),
           ],
         ),
@@ -164,9 +240,9 @@ class _ProfileTabState extends State<ProfileTab> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _buildStatItem('12', 'Wish List'),
+                    _buildStatItem('${_favorites.length}', 'Wish List'),
                     const SizedBox(width: 16),
-                    _buildStatItem('10', 'History'),
+                    _buildStatItem('${_history.length}', 'History'),
                   ],
                 ),
               ],
@@ -342,98 +418,229 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   Widget _buildWatchListContent() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset(
-            AppAssets.popcorn,
-            width: 200,
-            height: 200,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return const Icon(
-                Icons.local_movies,
-                size: 100,
-                color: Colors.grey,
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Your watch list is empty',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    if (_isLoadingFavorites) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.yellow,
+        ),
+      );
+    }
 
-  Widget _buildHistoryContent() {
-    final List<Map<String, dynamic>> movies = [
-      {'name': 'Black Widow', 'rating': '7.7'},
-      {'name': 'Hobbs & Shaw', 'rating': '7.7'},
-      {'name': '1917', 'rating': '7.7'},
-      {'name': 'Avengers', 'rating': '7.7'},
-      {'name': 'Avengers', 'rating': '7.7'},
-      {'name': 'Black Widow', 'rating': '7.7'},
-      {'name': 'Black Panther', 'rating': '7.7'},
-      {'name': 'Doctor Strange', 'rating': '7.7'},
-      {'name': 'Doctor Who', 'rating': '7.7'},
-      {'name': 'Godzilla', 'rating': '7.7'},
-      {'name': 'Wednesday', 'rating': '7.7'},
-      {'name': 'Movie', 'rating': '7.7'},
-    ];
+    if (_favorites.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              AppAssets.popcorn,
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.local_movies,
+                  size: 100,
+                  color: Colors.grey,
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Your watch list is empty',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final cardWidth = Responsive.getResponsiveValue(
+      context,
+      mobile: (MediaQuery.of(context).size.width - 48) / 3,
+      tablet: 150.0,
+      desktop: 180.0,
+    );
+
+    final cardHeight = Responsive.getResponsiveValue(
+      context,
+      mobile: 220.0,
+      tablet: 270.0,
+      desktop: 300.0,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.7,
+          childAspectRatio: cardWidth / cardHeight,
         ),
-        itemCount: movies.length,
+        itemCount: _favorites.length,
         itemBuilder: (context, index) {
-          return _buildMoviePoster(movies[index], index);
+          return GestureDetector(
+            onTap: () async {
+              final movieId = int.tryParse(_favorites[index].movieId);
+              if (movieId != null) {
+                await Navigator.pushNamed(
+                  context,
+                  MovieDetailsScreen.routeName,
+                  arguments: movieId,
+                );
+                if (mounted) {
+                  _loadFavorites();
+                }
+              }
+            },
+            child: _buildFavoriteMoviePoster(_favorites[index], cardWidth, cardHeight),
+          );
         },
       ),
     );
   }
 
-  Widget _buildMoviePoster(Map<String, dynamic> movie, int index) {
+  Widget _buildHistoryContent() {
+    if (_isLoadingHistory) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.yellow,
+        ),
+      );
+    }
+
+    if (_history.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              AppAssets.historyFolderIcon,
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.history,
+                  size: 100,
+                  color: Colors.grey,
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Your history is empty',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final cardWidth = Responsive.getResponsiveValue(
+      context,
+      mobile: (MediaQuery.of(context).size.width - 48) / 3,
+      tablet: 150.0,
+      desktop: 180.0,
+    );
+
+    final cardHeight = Responsive.getResponsiveValue(
+      context,
+      mobile: 220.0,
+      tablet: 270.0,
+      desktop: 300.0,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: GridView.builder(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: cardWidth / cardHeight,
+        ),
+        itemCount: _history.length,
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            onTap: () async {
+              await Navigator.pushNamed(
+                context,
+                MovieDetailsScreen.routeName,
+                arguments: _history[index].id,
+              );
+              if (mounted) {
+                _loadHistory();
+              }
+            },
+            child: _buildMoviePoster(_history[index], cardWidth, cardHeight),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFavoriteMoviePoster(FavoriteMovieModel movie, double width, double height) {
     return Stack(
       children: [
         Container(
+          width: width,
+          height: height,
           decoration: BoxDecoration(
             color: AppColors.grey,
             borderRadius: BorderRadius.circular(8),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              'assets/images/onboarding${(index % 6) + 1}.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: AppColors.grey,
-                  child: const Center(
-                    child: Icon(
-                      Icons.movie,
-                      color: AppColors.white,
-                      size: 40,
+            child: movie.imageURL.isNotEmpty
+                ? Image.network(
+                    movie.imageURL,
+                    width: width,
+                    height: height,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: AppColors.grey,
+                        child: const Center(
+                          child: Icon(
+                            Icons.movie,
+                            color: AppColors.white,
+                            size: 40,
+                          ),
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: AppColors.yellow,
+                        ),
+                      );
+                    },
+                  )
+                : Container(
+                    color: AppColors.grey,
+                    child: const Center(
+                      child: Icon(
+                        Icons.movie,
+                        color: AppColors.white,
+                        size: 40,
+                      ),
                     ),
                   ),
-                );
-              },
-            ),
           ),
         ),
-        // Rating badge
         Positioned(
           top: 8,
           left: 8,
@@ -461,7 +668,104 @@ class _ProfileTabState extends State<ProfileTab> {
                 ),
                 const SizedBox(width: 2),
                 Text(
-                  movie['rating'] ?? '7.7',
+                  movie.rating.toStringAsFixed(1),
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMoviePoster(MovieModel movie, double width, double height) {
+    return Stack(
+      children: [
+        Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: AppColors.grey,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: movie.mediumCoverImage.isNotEmpty
+                ? Image.network(
+                    movie.mediumCoverImage,
+                    width: width,
+                    height: height,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: AppColors.grey,
+                        child: const Center(
+                          child: Icon(
+                            Icons.movie,
+                            color: AppColors.white,
+                            size: 40,
+                          ),
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: AppColors.yellow,
+                        ),
+                      );
+                    },
+                  )
+                : Container(
+                    color: AppColors.grey,
+                    child: const Center(
+                      child: Icon(
+                        Icons.movie,
+                        color: AppColors.white,
+                        size: 40,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          left: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppColors.Black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  AppAssets.rateIcon,
+                  width: 12,
+                  height: 12,
+                  color: AppColors.yellow,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.star,
+                      color: AppColors.yellow,
+                      size: 12,
+                    );
+                  },
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  movie.rating.toStringAsFixed(1),
                   style: const TextStyle(
                     color: AppColors.white,
                     fontSize: 12,

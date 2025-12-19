@@ -12,6 +12,7 @@ import 'package:movie/core/api/models/update_profile_response.dart';
 import 'package:movie/core/api/models/get_profile_response.dart';
 import 'package:movie/core/api/models/delete_profile_response.dart';
 import 'package:movie/core/api/models/movie_model.dart';
+import 'package:movie/core/api/models/favorites_response.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -32,14 +33,43 @@ class ApiService {
         body: jsonEncode(request.toJson()),
       );
 
-      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (e) {
+        throw Exception('Invalid server response. Please try again.');
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return RegisterResponse.fromJson(responseData);
       } else {
-        throw Exception(
-          responseData['message'] ?? 'Registration failed. Please try again.',
-        );
+        String errorMessage = 'Registration failed. Please try again.';
+        
+        if (responseData.containsKey('message')) {
+          if (responseData['message'] is String) {
+            errorMessage = responseData['message'];
+          } else if (responseData['message'] is List) {
+            errorMessage = (responseData['message'] as List).join(', ');
+          }
+        } else if (responseData.containsKey('error')) {
+          if (responseData['error'] is String) {
+            errorMessage = responseData['error'];
+          } else if (responseData['error'] is Map) {
+            final errorMap = responseData['error'] as Map<String, dynamic>;
+            if (errorMap.containsKey('message')) {
+              errorMessage = errorMap['message'].toString();
+            }
+          }
+        } else if (responseData.containsKey('errors')) {
+          if (responseData['errors'] is List) {
+            errorMessage = (responseData['errors'] as List).join(', ');
+          } else if (responseData['errors'] is Map) {
+            final errorsMap = responseData['errors'] as Map<String, dynamic>;
+            errorMessage = errorsMap.values.join(', ');
+          }
+        }
+        
+        throw Exception(errorMessage);
       }
     } catch (e) {
       if (e is FormatException) {
@@ -301,14 +331,7 @@ class ApiService {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        // Check if status is 'ok' in response
-        if (responseData['status'] == 'ok') {
-          return MoviesListResponse.fromJson(responseData);
-        } else {
-          throw Exception(
-            responseData['status_message'] ?? 'Failed to fetch movies. Please try again.',
-          );
-        }
+        return MoviesListResponse.fromJson(responseData);
       } else {
         throw Exception(
           responseData['status_message'] ?? 'Failed to fetch movies. Please try again.',
@@ -346,14 +369,7 @@ class ApiService {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        // Check if status is 'ok' in response
-        if (responseData['status'] == 'ok') {
-          return MovieDetailsResponse.fromJson(responseData);
-        } else {
-          throw Exception(
-            responseData['status_message'] ?? 'Failed to fetch movie details. Please try again.',
-          );
-        }
+        return MovieDetailsResponse.fromJson(responseData);
       } else {
         throw Exception(
           responseData['status_message'] ?? 'Failed to fetch movie details. Please try again.',
@@ -391,17 +407,197 @@ class ApiService {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        // Check if status is 'ok' in response
-        if (responseData['status'] == 'ok') {
-          return MovieSuggestionsResponse.fromJson(responseData);
-        } else {
-          throw Exception(
-            responseData['status_message'] ?? 'Failed to fetch movie suggestions. Please try again.',
-          );
-        }
+        return MovieSuggestionsResponse.fromJson(responseData);
       } else {
         throw Exception(
           responseData['status_message'] ?? 'Failed to fetch movie suggestions. Please try again.',
+        );
+      }
+    } catch (e) {
+      if (e is FormatException) {
+        throw Exception('Data format error. Please try again.');
+      } else if (e.toString().contains('SocketException') || 
+                 e.toString().contains('Failed host lookup') ||
+                 e.toString().contains('No address associated')) {
+        throw Exception('Cannot connect to server. Please check your internet connection.');
+      } else if (e is Exception) {
+        final errorMessage = e.toString();
+        if (errorMessage.contains('Exception: ')) {
+          rethrow;
+        }
+        throw Exception('Error: ${errorMessage.replaceAll('Exception: ', '')}');
+      }
+      throw Exception('An unexpected error occurred. Please try again.');
+    }
+  }
+
+  Future<FavoritesResponse> getFavorites(String token) async {
+    try {
+      final url = Uri.parse('$baseUrl${ApiConstants.favoritesAll}');
+      
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (e) {
+        throw Exception('Invalid server response. Please try again.');
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return FavoritesResponse.fromJson(responseData);
+      } else {
+        throw Exception(
+          responseData['message'] ?? 'Failed to get favorites. Please try again.',
+        );
+      }
+    } catch (e) {
+      if (e is FormatException) {
+        throw Exception('Data format error. Please try again.');
+      } else if (e.toString().contains('SocketException') || 
+                 e.toString().contains('Failed host lookup') ||
+                 e.toString().contains('No address associated')) {
+        throw Exception('Cannot connect to server. Please check your internet connection.');
+      } else if (e is Exception) {
+        final errorMessage = e.toString();
+        if (errorMessage.contains('Exception: ')) {
+          rethrow;
+        }
+        throw Exception('Error: ${errorMessage.replaceAll('Exception: ', '')}');
+      }
+      throw Exception('An unexpected error occurred. Please try again.');
+    }
+  }
+
+  Future<AddFavoriteResponse> addFavorite(MovieModel movie, String token) async {
+    try {
+      final url = Uri.parse('$baseUrl${ApiConstants.addFavorite}');
+      
+      final requestBody = {
+        'movieId': movie.id.toString(),
+        'name': movie.title,
+        'rating': movie.rating,
+        'imageURL': movie.mediumCoverImage.isNotEmpty 
+            ? movie.mediumCoverImage 
+            : (movie.largeCoverImage ?? ''),
+        'year': movie.year.toString(),
+      };
+      
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (e) {
+        throw Exception('Invalid server response. Please try again.');
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return AddFavoriteResponse.fromJson(responseData);
+      } else {
+        throw Exception(
+          responseData['message'] ?? 'Failed to add favorite. Please try again.',
+        );
+      }
+    } catch (e) {
+      if (e is FormatException) {
+        throw Exception('Data format error. Please try again.');
+      } else if (e.toString().contains('SocketException') || 
+                 e.toString().contains('Failed host lookup') ||
+                 e.toString().contains('No address associated')) {
+        throw Exception('Cannot connect to server. Please check your internet connection.');
+      } else if (e is Exception) {
+        final errorMessage = e.toString();
+        if (errorMessage.contains('Exception: ')) {
+          rethrow;
+        }
+        throw Exception('Error: ${errorMessage.replaceAll('Exception: ', '')}');
+      }
+      throw Exception('An unexpected error occurred. Please try again.');
+    }
+  }
+
+  Future<RemoveFavoriteResponse> removeFavorite(int movieId, String token) async {
+    try {
+      final url = Uri.parse('$baseUrl${ApiConstants.removeFavorite}/$movieId');
+      
+      final response = await http.delete(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (e) {
+        throw Exception('Invalid server response. Please try again.');
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return RemoveFavoriteResponse.fromJson(responseData);
+      } else {
+        throw Exception(
+          responseData['message'] ?? 'Failed to remove favorite. Please try again.',
+        );
+      }
+    } catch (e) {
+      if (e is FormatException) {
+        throw Exception('Data format error. Please try again.');
+      } else if (e.toString().contains('SocketException') || 
+                 e.toString().contains('Failed host lookup') ||
+                 e.toString().contains('No address associated')) {
+        throw Exception('Cannot connect to server. Please check your internet connection.');
+      } else if (e is Exception) {
+        final errorMessage = e.toString();
+        if (errorMessage.contains('Exception: ')) {
+          rethrow;
+        }
+        throw Exception('Error: ${errorMessage.replaceAll('Exception: ', '')}');
+      }
+      throw Exception('An unexpected error occurred. Please try again.');
+    }
+  }
+
+  Future<IsFavoriteResponse> isFavorite(int movieId, String token) async {
+    try {
+      final url = Uri.parse('$baseUrl${ApiConstants.isFavorite}/$movieId');
+      
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (e) {
+        throw Exception('Invalid server response. Please try again.');
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return IsFavoriteResponse.fromJson(responseData);
+      } else {
+        throw Exception(
+          responseData['message'] ?? 'Failed to check favorite status. Please try again.',
         );
       }
     } catch (e) {

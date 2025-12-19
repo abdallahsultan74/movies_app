@@ -75,7 +75,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.pushNamed(context, ResetPasswordScreen.routeName);
+                      Navigator.pushNamed(
+                          context, ResetPasswordScreen.routeName);
                     },
                     child: const Text(
                       'Forget Password?',
@@ -379,7 +380,8 @@ class _LoginScreenState extends State<LoginScreen> {
               height: containerHeight - (borderWidth * 2),
               decoration: BoxDecoration(
                 color: AppColors.grey,
-                borderRadius: BorderRadius.circular((containerHeight - (borderWidth * 2)) / 2),
+                borderRadius: BorderRadius.circular(
+                    (containerHeight - (borderWidth * 2)) / 2),
               ),
             ),
           ),
@@ -465,7 +467,8 @@ class _LoginScreenState extends State<LoginScreen> {
             await _userService.saveUser(user);
           } else {
             final existingUser = await _userService.getUser();
-            if (existingUser != null && existingUser.email == _emailController.text.trim()) {
+            if (existingUser != null &&
+                existingUser.email == _emailController.text.trim()) {
               token = existingUser.token;
             } else {
               final user = UserModel(
@@ -532,7 +535,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       final user = UserModel(
         id: googleUser.id,

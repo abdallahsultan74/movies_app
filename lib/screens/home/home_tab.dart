@@ -76,28 +76,11 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
       body: BlocBuilder<MoviesBloc, MoviesState>(
         buildWhen: (previous, current) {
           return current is MoviesLoading ||
-                 current is MoviesLoaded ||
-                 current is MoviesError ||
-                 current is MoviesInitial;
+              current is MoviesLoaded ||
+              current is MoviesError ||
+              (previous is MoviesLoaded && current is! MoviesLoaded);
         },
         builder: (context, state) {
-          if (state is! MoviesLoading && 
-              state is! MoviesLoaded && 
-              state is! MoviesError &&
-              state is! MoviesInitial) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                _hasLoadedMovies = false;
-                _loadMovies(force: true);
-              }
-            });
-            return const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.yellow,
-              ),
-            );
-          }
-
           if (state is MoviesLoading) {
             return const Center(
               child: CircularProgressIndicator(
@@ -317,12 +300,16 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(
+                    onTap: () async {
+                      await Navigator.pushNamed(
                         context,
                         MovieDetailsScreen.routeName,
                         arguments: movies[index].id,
                       );
+                      if (mounted) {
+                        _hasLoadedMovies = false;
+                        _loadMovies(force: true);
+                      }
                     },
                     child: _buildCarouselMovieCard(
                       context,
@@ -556,12 +543,16 @@ class _HomeTabState extends State<HomeTab> with WidgetsBindingObserver {
             itemCount: movies.length > 10 ? 10 : movies.length,
             itemBuilder: (context, index) {
               return GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(
+                onTap: () async {
+                  await Navigator.pushNamed(
                     context,
                     MovieDetailsScreen.routeName,
                     arguments: movies[index].id,
                   );
+                  if (mounted) {
+                    _hasLoadedMovies = false;
+                    _loadMovies(force: true);
+                  }
                 },
                 child: _buildMovieCard(
                   context,

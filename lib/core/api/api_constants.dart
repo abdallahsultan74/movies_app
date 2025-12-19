@@ -9,6 +9,11 @@ class ApiConstants {
   static const String updateProfile = '/profile';
   static const String deleteProfile = '/profile';
   
+  static const String favoritesAll = '/favorites/all';
+  static const String addFavorite = '/favorites/add';
+  static const String removeFavorite = '/favorites/remove';
+  static const String isFavorite = '/favorites/is-favorite';
+  
   // YTS Movies API
   static const String ytsBaseUrl = 'https://yts.lt/api/v2';
   static const String listMovies = '/list_movies.json';
